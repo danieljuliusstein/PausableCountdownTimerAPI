@@ -1,32 +1,45 @@
-; Role 5: SCOMP assembly demo starter.
-; SCAFFOLD ONLY — no game and no working control loop yet.
-; Goal: demonstrate hardware LOAD, START, PAUSE, RESUME, RESET and DONE.
+; ===============================================================
+; PERSON 5: SCOMP ASSEMBLY API DEMONSTRATION
+; File ownership: software/CountdownDemo.asm
+; Status: ASSIGNMENT COMMENTS ONLY; NO IMPLEMENTATION YET
+; ===============================================================
 ;
-; Proposed I/O values (see docs/api-contract.md):
-;   TimerValue   0x030 : WRITE duration / READ remaining
-;   TimerControl 0x031 : WRITE 0 pause, 1 start/resume, 2 reset
-;                       READ bit 0 RUNNING, bit 1 DONE
+; GOAL
+; Write a small program demonstrating the reusable countdown API.
+; Do NOT build the rocketship game yet. This is the API proof of use.
 ;
-ORG 0
-Init:
-    ; Initial 5-second count (50 deciseconds).
-    LOADI 50
-    OUT TimerValue
-
-MainLoop:
-    ; TODO(Role 5): read Switches and edge-detect buttons.
-    ; TODO(Role 5): issue PAUSE/START/RESET based on switches.
-    ; TODO(Role 5): read current remaining time and write to Hex0.
-    ; TODO(Role 5): read DONE status and display on LED.
-    ; Do not count down in software.
-    JUMP MainLoop
-
-; Lab 8 existing peripherals:
-Switches:     EQU &H000
-LEDs:         EQU &H001
-Hex0:         EQU &H004
-Hex1:         EQU &H005
-
-; New countdown peripheral:
-TimerValue:   EQU &H030
-TimerControl: EQU &H031
+; EXISTING LAB 8 I/O ADDRESSES
+; Switches = 0x000; LEDs = 0x001; HEX0 = 0x004; HEX1 = 0x005.
+;
+; PROPOSED NEW ADDRESSES (CHECK docs/api-contract.md)
+; TimerValue   = 0x030: OUT duration, IN remaining.
+; TimerControl = 0x031: OUT 0 pause, 1 start/resume, 2 reset.
+;                        IN bit 0 RUNNING, bit 1 DONE.
+;
+; FEATURES TO IMPLEMENT
+; [ ] On startup, load a five-second duration (50 deciseconds).
+; [ ] Use a switch input to START the countdown.
+; [ ] Use another switch input to PAUSE the countdown.
+; [ ] Use a switch input to RESUME without reloading.
+; [ ] Use a switch input to RESET to the originally loaded time.
+; [ ] Read TIMER_VALUE and show remaining time on HEX displays.
+; [ ] Read TIMER_CONTROL and show DONE on an LED.
+; [ ] Prevent held switches from repeatedly firing commands.
+; [ ] Use the hardware peripheral for all timing; no software
+;     decrement loop and no counting iterations as time.
+;
+; DEMO ACCEPTANCE
+; [ ] The display counts down while timer is RUNNING.
+; [ ] The displayed time stays unchanged while PAUSED.
+; [ ] RESUME continues from the frozen time.
+; [ ] RESET restores the saved duration.
+; [ ] DONE becomes visible at zero and stays asserted.
+;
+; COORDINATION
+; [ ] Confirm final register addresses and command codes with Person 3.
+; [ ] Coordinate switch/display pin mapping with Person 4.
+; [ ] Assemble to the MIF expected by the actual SCOMP starter files.
+; [ ] Later reuse the SAME API in the optional rocketship game.
+;
+; BEFORE IMPLEMENTING
+; Read docs/api-contract.md and docs/roles/05-assembly-demo.md.

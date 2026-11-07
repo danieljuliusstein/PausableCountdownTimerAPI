@@ -1,33 +1,40 @@
--- Role 2: countdown control state machine.
--- SCAFFOLD ONLY: implement state transitions before using on FPGA.
-library ieee;
-use ieee.std_logic_1164.all;
-
-entity countdown_controller is
-    port (
-        CLOCK         : in  std_logic;
-        RESETN        : in  std_logic;
-        LOAD_STROBE   : in  std_logic;
-        START_STROBE  : in  std_logic;
-        PAUSE_STROBE  : in  std_logic;
-        RESET_STROBE  : in  std_logic;
-        REMAINING     : in  std_logic_vector(15 downto 0);
-        TICK_PULSE    : in  std_logic;
-        RUNNING       : out std_logic;
-        DONE          : out std_logic;
-        RELOAD_STROBE : out std_logic;
-        DECREMENT     : out std_logic
-    );
-end entity countdown_controller;
-
-architecture rtl of countdown_controller is
-begin
-    -- TODO(Role 2): PAUSED / RUNNING / DONE finite state machine.
-    -- TODO(Role 2): on tick with REMAINING=1, decrement and set sticky DONE.
-    -- TODO(Role 2): LOAD / RESET / START / PAUSE priority per docs/api-contract.md.
-    -- Deliberate inactive stub: this is NOT a working controller.
-    RUNNING       <= '0';
-    DONE          <= '0';
-    RELOAD_STROBE <= '0';
-    DECREMENT     <= '0';
-end architecture rtl;
+-- ===============================================================
+-- PERSON 2: PAUSE / RESUME CONTROLLER
+-- File ownership: hardware/rtl/countdown_controller.vhd
+-- Status: ASSIGNMENT COMMENTS ONLY; NO IMPLEMENTATION YET
+-- ===============================================================
+--
+-- GOAL
+-- Control whether the countdown is PAUSED, RUNNING, or DONE.
+-- Preserve remaining time when paused and provide a sticky done flag.
+--
+-- REQUIRED BEHAVIOR
+-- [ ] Define and implement PAUSED, RUNNING and DONE behavior.
+-- [ ] START/RESUME starts counting using the existing remaining value.
+-- [ ] PAUSE stops counting without changing remaining time.
+-- [ ] Repeated START or PAUSE must not restart/reset the countdown.
+-- [ ] RESET command reloads the original duration and pauses.
+-- [ ] LOAD of a new duration pauses and clears the DONE flag.
+-- [ ] Detect expiry when the countdown reaches zero.
+-- [ ] At expiry, stop running and set DONE until another LOAD/RESET.
+-- [ ] Handle zero-duration START without underflow.
+-- [ ] Establish priority when commands and timer tick coincide.
+--
+-- INTERFACE TO DISCUSS WITH PEOPLE 1 AND 3
+-- [ ] Inputs: CLOCK, RESETN, LOAD_STROBE, START_STROBE,
+--            PAUSE_STROBE, RESET_STROBE, REMAINING, TICK_PULSE.
+-- [ ] Outputs: RUNNING, DONE, RELOAD_STROBE, DECREMENT.
+-- [ ] Specify if decrement and expiration are decided on same cycle
+--     or on successive cycles; coordinate with Person 1.
+-- [ ] Person 3 will decode OUT commands; this module handles states.
+--
+-- TESTS / ACCEPTANCE
+-- [ ] START -> PAUSE -> RESUME keeps the correct remaining value.
+-- [ ] DONE stays set after expiration until LOAD/RESET.
+-- [ ] RESET returns to the loaded duration, not zero.
+-- [ ] Invalid/unrelated I/O activity never changes controller state.
+-- [ ] Give state transition expectations to Person 4.
+--
+-- BEFORE IMPLEMENTING
+-- Read docs/api-contract.md and docs/roles/02-controller.md.
+-- Do not rename shared ports without updating the team contract.

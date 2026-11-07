@@ -1,33 +1,41 @@
--- Role 1: countdown storage and tick generation.
--- SCAFFOLD ONLY: implement the marked logic before using on FPGA.
-library ieee;
-use ieee.std_logic_1164.all;
-
-entity countdown_core is
-    generic (
-        TICKS_PER_DECIS : positive := 1000000  -- 10 MHz / 10 Hz
-    );
-    port (
-        CLOCK         : in  std_logic;
-        RESETN        : in  std_logic;
-        RUNNING       : in  std_logic;
-        LOAD_STROBE   : in  std_logic;
-        LOAD_VALUE    : in  std_logic_vector(15 downto 0);
-        RELOAD_STROBE : in  std_logic;
-        DECREMENT     : in  std_logic;
-        REMAINING     : out std_logic_vector(15 downto 0);
-        LOADED_VALUE  : out std_logic_vector(15 downto 0);
-        TICK_PULSE    : out std_logic
-    );
-end entity countdown_core;
-
-architecture rtl of countdown_core is
-begin
-    -- TODO(Role 1): implement synchronous loaded and remaining registers.
-    -- TODO(Role 1): implement divider, pausing fractional progress when RUNNING=0.
-    -- TODO(Role 1): load/reload resets fractional divider; decrement saturates at zero.
-    -- Deliberate inactive stub: this is NOT a working countdown implementation.
-    REMAINING    <= (others => '0');
-    LOADED_VALUE <= (others => '0');
-    TICK_PULSE   <= '0';
-end architecture rtl;
+-- ===============================================================
+-- PERSON 1: COUNTDOWN CORE
+-- File ownership: hardware/rtl/countdown_core.vhd
+-- Status: ASSIGNMENT COMMENTS ONLY; NO IMPLEMENTATION YET
+-- ===============================================================
+--
+-- GOAL
+-- Build the reusable hardware that stores the countdown duration
+-- and decreases the remaining value once per 0.1-second interval.
+-- This module must NOT know anything about rockets or game rules.
+--
+-- REQUIRED BEHAVIOR
+-- [ ] Store a 16-bit loaded/original duration.
+-- [ ] Store a separate 16-bit remaining countdown value.
+-- [ ] On LOAD, replace both values with the requested duration.
+-- [ ] On RELOAD, restore remaining to the saved original duration.
+-- [ ] Create a 0.1-second timing event from the SCOMP 10 MHz clock.
+-- [ ] Make the divider configurable so simulation runs quickly.
+-- [ ] Stop advancing the divider when the timer is paused.
+-- [ ] Resume with the same fractional progress toward the next tick.
+-- [ ] On a requested decrement, decrease remaining by exactly one.
+-- [ ] Never decrement below zero or wrap back around.
+-- [ ] Reset both registers and the divider when RESETN is asserted.
+--
+-- INTERFACE TO DISCUSS WITH PEOPLE 2 AND 3
+-- [ ] Inputs: CLOCK, RESETN, RUNNING, LOAD_STROBE, LOAD_VALUE,
+--            RELOAD_STROBE, DECREMENT.
+-- [ ] Outputs: REMAINING, LOADED_VALUE, TICK_PULSE.
+-- [ ] Agree on the timing of TICK_PULSE and DECREMENT before coding.
+-- [ ] Decide command precedence when a new LOAD coincides with a tick.
+--
+-- TESTS / ACCEPTANCE
+-- [ ] Loading 50 means 50 tenths of a second remaining.
+-- [ ] Countdown only changes while RUNNING.
+-- [ ] Pausing midway through a tick preserves both count and fraction.
+-- [ ] Reload restores the saved duration; zero never underflows.
+-- [ ] Hand the tests and timing assumptions to Person 4.
+--
+-- BEFORE IMPLEMENTING
+-- Read docs/api-contract.md and docs/roles/01-countdown-core.md.
+-- Do not rename shared ports without updating the team contract.
