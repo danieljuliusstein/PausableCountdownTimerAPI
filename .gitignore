@@ -1,0 +1,29 @@
+# Quartus generated files and caches
+**/db/
+**/incremental_db/
+**/output_files/
+**/simulation/
+**/.qsys_edit/
+**/*.rpt
+**/*.smsg
+**/*.qws
+**/*.sof
+**/*.pof
+**/*.jic
+**/*.cdf
+**/*.mif
+**/*.hex
+**/*.map
+**/*.fit
+**/*.sta
+
+# Build/cache
+*.o
+*.cf
+__pycache__/
+.DS_Store
+Thumbs.db
+
+# Keep course-provided baseline files local until sharing is approved.
+# Document their location in hardware/quartus/README.md.
+hardware/quartus/course-starter/
