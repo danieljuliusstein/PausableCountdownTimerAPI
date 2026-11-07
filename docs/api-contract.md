@@ -1,5 +1,7 @@
 # Proposed countdown I/O API (v0; team agreement required)
 
+> **Freeze target: Monday, November 9, 2026, 11:59 PM ET.** Every team member must review and type their own name and date in the sign-off section below before the API is considered approved. Changes after sign-off require everyone to re-review the affected contract.
+
 ## Context
 
 The Lab 8 starter uses a shared 16-bit IO_DATA bus, 11-bit IO_ADDR, IO_READ, IO_WRITE and active-low RESETN. This project adds a new peripheral without replacing the existing timer at address 0x002.
@@ -68,3 +70,29 @@ TimerControl: EQU &H031
 - Verify timing relative to the CPU and internal register sampling; do not derive new clocks from IO_WRITE.
 - Validate tristate IO_DATA behavior against SCOMP and existing peripherals.
 - Confirm that the course's assembler and RAM MIF setting match the final assembly output.
+
+---
+
+## Required team review and sign-off
+
+**By Monday, November 9 at 11:59 PM ET.** Every person must review **all** sections above, not only their own module. Type your real name and the date in **your assigned row**, and change **Pending** to **Approved** only if you agree with the register addresses, command meanings, time semantics, and shared module signals.
+
+**Do not sign for anyone else.** Names below are intentionally blank. An empty name or date means the contract is not yet approved by that person.
+
+| Role | Responsibility | Typed name (each person fills in) | Date (YYYY-MM-DD) | Approval |
+| --- | --- | --- | --- | --- |
+| Person 1 | Countdown core | _Type your name_ | _YYYY-MM-DD_ | Pending |
+| Person 2 | Pause/resume controller | _Type your name_ | _YYYY-MM-DD_ | Pending |
+| Person 3 | SCOMP I/O interface | _Type your name_ | _YYYY-MM-DD_ | Pending |
+| Person 4 | Quartus integration & verification | _Type your name_ | _YYYY-MM-DD_ | Pending |
+| Person 5 | Assembly demo & rocketship game | _Type your name_ | _YYYY-MM-DD_ | Pending |
+
+### Changes after approval
+
+If anyone finds a needed API change, update this contract first, write down the proposed change below, and have all five people review and update their approvals **again** before implementation depends on it.
+
+| Date | Proposed/approved change | Reason | All five re-approved? |
+| --- | --- | --- | --- |
+| _YYYY-MM-DD_ | _Describe any change here_ | _Why?_ | Pending |
+
+See [project timeline](timeline.md) for coding and game deadlines.
