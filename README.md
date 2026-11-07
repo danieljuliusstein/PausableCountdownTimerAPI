@@ -11,8 +11,6 @@ A reusable, memory-mapped countdown peripheral for Georgia Tech's SCOMP processo
 - **[Required five-person API contract sign-off](docs/api-contract.md#required-team-review-and-sign-off)**
 - **[Rocketship MVP game plan](docs/game-plan.md)**
 
-These are internal planning dates; the official course due date must still be confirmed.
-
 ## Five workstreams
 
 | Role | Owner's focus | Main files |
