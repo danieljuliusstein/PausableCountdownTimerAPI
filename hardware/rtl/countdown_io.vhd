@@ -1,37 +1,45 @@
--- Role 3: SCOMP bus interface, addresses 0x030 and 0x031.
--- SCAFFOLD ONLY: decode and strobe logic intentionally not implemented.
-library ieee;
-use ieee.std_logic_1164.all;
-
-entity countdown_io is
-    port (
-        CLOCK        : in    std_logic;
-        RESETN       : in    std_logic;
-        IO_ADDR      : in    std_logic_vector(10 downto 0);
-        IO_READ      : in    std_logic;
-        IO_WRITE     : in    std_logic;
-        IO_DATA      : inout std_logic_vector(15 downto 0);
-        REMAINING    : in    std_logic_vector(15 downto 0);
-        RUNNING      : in    std_logic;
-        DONE         : in    std_logic;
-        LOAD_STROBE  : out   std_logic;
-        LOAD_VALUE   : out   std_logic_vector(15 downto 0);
-        START_STROBE : out   std_logic;
-        PAUSE_STROBE : out   std_logic;
-        RESET_STROBE : out   std_logic
-    );
-end entity countdown_io;
-
-architecture rtl of countdown_io is
-begin
-    -- TODO(Role 3): selected READ must drive IO_DATA with remaining/status.
-    -- TODO(Role 3): selected WRITE must pulse commands and capture load value.
-    -- TODO(Role 3): leave IO_DATA high impedance at all other times.
-    -- Deliberate inactive stub: this interface does NOT respond to I/O yet.
-    IO_DATA      <= (others => 'Z');
-    LOAD_STROBE  <= '0';
-    LOAD_VALUE   <= (others => '0');
-    START_STROBE <= '0';
-    PAUSE_STROBE <= '0';
-    RESET_STROBE <= '0';
-end architecture rtl;
+-- ===============================================================
+-- PERSON 3: SCOMP MEMORY-MAPPED I/O
+-- File ownership: hardware/rtl/countdown_io.vhd
+-- Status: ASSIGNMENT COMMENTS ONLY; NO IMPLEMENTATION YET
+-- ===============================================================
+--
+-- GOAL
+-- Make the timer accessible from SCOMP assembly using IN and OUT.
+-- Keep the bus decoding separate from the countdown hardware.
+--
+-- PROPOSED REGISTER MAP (MUST BE CONFIRMED WITH GROUP / TA)
+-- [ ] Address 0x030: TIMER_VALUE
+--     OUT: load a 16-bit duration in 0.1-second ticks.
+--     IN:  read remaining ticks.
+-- [ ] Address 0x031: TIMER_CONTROL
+--     OUT 0: PAUSE; OUT 1: START / RESUME; OUT 2: RESET / RELOAD.
+--     IN: bit 0 = RUNNING, bit 1 = DONE, all higher bits = zero.
+-- [ ] Other writes to control register should have no effect.
+--
+-- REQUIRED BEHAVIOR
+-- [ ] Decode the 11-bit I/O address and read/write signals.
+-- [ ] Read incoming 16-bit IO_DATA without driving it on writes.
+-- [ ] Drive the shared IO_DATA bus ONLY on selected reads.
+-- [ ] Drive high impedance when not selected, including writes.
+-- [ ] Convert writes into reliable one-transaction command strobes.
+-- [ ] Avoid duplicate commands when IO_WRITE stays asserted.
+-- [ ] Forward remaining and status values for CPU reads.
+-- [ ] Preserve all existing peripheral addresses and behavior.
+--
+-- SHARED INTERFACE TO COORDINATE
+-- [ ] Bus inputs/outputs: CLOCK, RESETN, IO_ADDR[10:0],
+--     IO_READ, IO_WRITE, bidirectional IO_DATA[15:0].
+-- [ ] Internal commands: LOAD_STROBE, LOAD_VALUE,
+--     START_STROBE, PAUSE_STROBE, RESET_STROBE.
+-- [ ] Internal status inputs: REMAINING, RUNNING, DONE.
+-- [ ] Work with Person 4 to verify there is no bus contention.
+--
+-- TESTS / ACCEPTANCE
+-- [ ] Confirm reads/writes at 0x030 and 0x031 work correctly.
+-- [ ] Confirm other addresses never trigger a command.
+-- [ ] Verify bus stays high-impedance when not selected for reads.
+-- [ ] Share exact command encoding with Person 5.
+--
+-- BEFORE IMPLEMENTING
+-- Read docs/api-contract.md and docs/roles/03-io-interface.md.
