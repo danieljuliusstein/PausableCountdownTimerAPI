@@ -2,8 +2,6 @@
 
 A reusable, memory-mapped countdown peripheral for Georgia Tech's SCOMP processor. The goal is to make time-based assembly programs easier to write by moving countdown, pause/resume, reset, and expiration tracking into VHDL hardware.
 
-**Status: planning scaffold — comment-only source files.** No VHDL modules, testbench, or assembly program have been implemented. Each owned source file contains assignment comments/checklists for its developer, not sample code. The project will not compile until the team implements those files.
-
 ## Five workstreams
 
 | Role | Owner's focus | Main files |
