@@ -8,6 +8,8 @@ use ieee.stud_logic.arith.all;
 
 entity controller is 
   port(
+    -- DANIEL DID YOU NAME THESE VARIABLES LIKE THIS I DON'T KNOW WHAT THEY DO
+    -- :( :( :( :( :( :( :( :( :(
     clock  :        in    std_logic;
     resetn :        in    std_logic;
     load_strobe  :  in    std_logic;
@@ -26,7 +28,7 @@ end controller;
 architecture behavior of controller is
     type state_type is (
       clear, fetch, decode,
-      paused, running, done
+      paused, running_state, done_state
     );
 
     signal state : state_type;
@@ -35,11 +37,20 @@ begin
   
   process(clock, resetn)
   begin
-  if (resetn = '0') then
-    state <= paused;
-  elsif (rising_edge(clock)) then
-    case state is
-      when paused =>
-        
-      when 
-        
+    if (resetn = '0') then
+      state <= paused;
+    elsif (rising_edge(clock)) then
+      case state is
+        when paused =>
+            
+        when running_state =>
+
+        when done_state =>
+
+    end if;
+  end process;
+  running <= '1' when state = running_state else '0';
+  done <= '1' when state = done_state else '0';
+end behavior;
+
+      
