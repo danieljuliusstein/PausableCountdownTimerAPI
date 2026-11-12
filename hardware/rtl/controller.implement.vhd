@@ -8,7 +8,7 @@ use ieee.stud_logic.arith.all;
 
 entity controller is 
   port(
-    -- DANIEL DID YOU NAME THESE VARIABLES LIKE THIS I DON'T KNOW WHAT THEY DO
+    -- DANIEL WHY DID YOU NAME THESE VARIABLES LIKE THIS I DON'T KNOW WHAT THEY DO
     -- :( :( :( :( :( :( :( :( :(
     clock  :        in    std_logic;
     resetn :        in    std_logic;
