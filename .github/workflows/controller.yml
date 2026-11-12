@@ -1,0 +1,16 @@
+name: Controller VHDL checks
+on:
+  push:
+    branches: ['role2/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  controller:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install VHDL simulator
+        run: sudo apt-get update && sudo apt-get install -y ghdl
+      - name: Analyze simulate and synthesize controller
+        run: sh hardware/sim/run_controller_tests.sh

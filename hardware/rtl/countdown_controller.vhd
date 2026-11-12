@@ -1,40 +1,86 @@
--- ===============================================================
--- PERSON 2: PAUSE / RESUME CONTROLLER
--- File ownership: hardware/rtl/countdown_controller.vhd
--- Status: ASSIGNMENT COMMENTS ONLY; NO IMPLEMENTATION YET
--- ===============================================================
---
--- GOAL
--- Control whether the countdown is PAUSED, RUNNING, or DONE.
--- Preserve remaining time when paused and provide a sticky done flag.
---
--- REQUIRED BEHAVIOR
--- [ ] Define and implement PAUSED, RUNNING and DONE behavior.
--- [ ] START/RESUME starts counting using the existing remaining value.
--- [ ] PAUSE stops counting without changing remaining time.
--- [ ] Repeated START or PAUSE must not restart/reset the countdown.
--- [ ] RESET command reloads the original duration and pauses.
--- [ ] LOAD of a new duration pauses and clears the DONE flag.
--- [ ] Detect expiry when the countdown reaches zero.
--- [ ] At expiry, stop running and set DONE until another LOAD/RESET.
--- [ ] Handle zero-duration START without underflow.
--- [ ] Establish priority when commands and timer tick coincide.
---
--- INTERFACE TO DISCUSS WITH PEOPLE 1 AND 3
--- [ ] Inputs: CLOCK, RESETN, LOAD_STROBE, START_STROBE,
---            PAUSE_STROBE, RESET_STROBE, REMAINING, TICK_PULSE.
--- [ ] Outputs: RUNNING, DONE, RELOAD_STROBE, DECREMENT.
--- [ ] Specify if decrement and expiration are decided on same cycle
---     or on successive cycles; coordinate with Person 1.
--- [ ] Person 3 will decode OUT commands; this module handles states.
---
--- TESTS / ACCEPTANCE
--- [ ] START -> PAUSE -> RESUME keeps the correct remaining value.
--- [ ] DONE stays set after expiration until LOAD/RESET.
--- [ ] RESET returns to the loaded duration, not zero.
--- [ ] Invalid/unrelated I/O activity never changes controller state.
--- [ ] Give state transition expectations to Person 4.
---
--- BEFORE IMPLEMENTING
--- Read docs/api-contract.md and docs/roles/02-controller.md.
--- Do not rename shared ports without updating the team contract.
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+-- Commands are synchronous one-clock pulses produced by countdown_io.
+-- Core samples DECREMENT/RELOAD_STROBE on the same edge as this FSM.
+entity countdown_controller is
+    port (
+        CLOCK         : in  std_logic;
+        RESETN        : in  std_logic; -- asynchronous system reset, active low
+        LOAD_STROBE   : in  std_logic; -- duration write; core loads independently
+        START_STROBE  : in  std_logic; -- START and RESUME share this command
+        PAUSE_STROBE  : in  std_logic;
+        RESET_STROBE  : in  std_logic; -- software reset: reload saved duration
+        REMAINING     : in  std_logic_vector(15 downto 0);
+        TICK_PULSE    : in  std_logic; -- core's tick-due indication before edge
+        RUNNING       : out std_logic; -- state/status; see timing notes
+        DONE          : out std_logic;
+        RELOAD_STROBE : out std_logic; -- request core reload on this edge
+        DECREMENT     : out std_logic  -- request core subtract one on this edge
+    );
+end entity countdown_controller;
+
+architecture rtl of countdown_controller is
+    type state_type is (PAUSED, RUNNING_STATE, DONE_STATE);
+    signal state, next_state : state_type;
+begin
+    process (CLOCK, RESETN)
+    begin
+        if RESETN = '0' then
+            state <= PAUSED;
+        elsif rising_edge(CLOCK) then
+            state <= next_state;
+        end if;
+    end process;
+
+    -- Defaults make every output defined and prevent inferred latches.
+    process (state, RESETN, LOAD_STROBE, START_STROBE, PAUSE_STROBE,
+             RESET_STROBE, REMAINING, TICK_PULSE)
+    begin
+        next_state <= state;
+        RUNNING <= '0';
+        DONE <= '0';
+        RELOAD_STROBE <= '0';
+        DECREMENT <= '0';
+
+        if RESETN = '1' then
+            if state = RUNNING_STATE then
+                RUNNING <= '1';
+            elsif state = DONE_STATE then
+                DONE <= '1';
+            end if;
+
+            -- LOAD > RESET > PAUSE > START > tick. The I/O decoder normally
+            -- emits only one command; the priority also defines collisions.
+            if LOAD_STROBE = '1' then
+                next_state <= PAUSED;
+            elsif RESET_STROBE = '1' then
+                RELOAD_STROBE <= '1';
+                next_state <= PAUSED;
+            elsif PAUSE_STROBE = '1' then
+                -- DONE is sticky: PAUSE cannot acknowledge expiration.
+                if state /= DONE_STATE then
+                    next_state <= PAUSED;
+                end if;
+            elsif START_STROBE = '1' then
+                if state = PAUSED then
+                    if unsigned(REMAINING) = 0 then
+                        next_state <= DONE_STATE;
+                    else
+                        next_state <= RUNNING_STATE;
+                    end if;
+                end if;
+            elsif state = RUNNING_STATE then
+                if unsigned(REMAINING) = 0 then
+                    next_state <= DONE_STATE;
+                elsif TICK_PULSE = '1' then
+                    DECREMENT <= '1';
+                    if unsigned(REMAINING) = 1 then
+                        next_state <= DONE_STATE;
+                    end if;
+                end if;
+            end if;
+        end if;
+    end process;
+end architecture rtl;
