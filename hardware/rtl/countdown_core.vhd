@@ -1,4 +1,6 @@
-library.ieee
+-- I'll do this file (Tyler)
+
+library ieee;
 
 -- ===============================================================
 -- PERSON 1: COUNTDOWN CORE
