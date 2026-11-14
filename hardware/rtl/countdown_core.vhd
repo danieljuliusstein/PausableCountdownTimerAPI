@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 entity countdown_core is
     generic (
         -- makes the divider configurable so simulation runs quickly
-        divider    : 1000000;  -- clock cycles per 1/10s (10 Mhz * 0.1s = 1M cycles)
+        divider    : positive := 1000000;  -- clock cycles per 1/10s (10 Mhz * 0.1s = 1M cycles)
     );
     port (
         CLOCK         : in    std_logic;
