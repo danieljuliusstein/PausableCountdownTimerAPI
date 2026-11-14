@@ -2,77 +2,85 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+-- Commands are synchronous one-clock pulses produced by countdown_io.
+-- Core samples DECREMENT/RELOAD_STROBE on the same edge as this FSM.
 entity countdown_controller is
-  port (
-    -- these are the commands coming from the IO part
-    CLOCK, RESETN, LOAD_STROBE, START_STROBE, PAUSE_STROBE,
-      RESET_STROBE, TICK_PULSE : in std_logic;
-    -- the controller checks this so it knows when the timer is done
-    REMAINING : in std_logic_vector(15 downto 0);
-    -- these tell the other parts what the controller wants to do
-    RUNNING, DONE, RELOAD_STROBE, DECREMENT : out std_logic
-  );
-end entity;
+    port (
+        CLOCK         : in  std_logic;
+        RESETN        : in  std_logic; -- asynchronous system reset, active low
+        LOAD_STROBE   : in  std_logic; -- duration write; core loads independently
+        START_STROBE  : in  std_logic; -- START and RESUME share this command
+        PAUSE_STROBE  : in  std_logic;
+        RESET_STROBE  : in  std_logic; -- software reset: reload saved duration
+        REMAINING     : in  std_logic_vector(15 downto 0);
+        TICK_PULSE    : in  std_logic; -- core's tick-due indication before edge
+        RUNNING       : out std_logic; -- state/status; see timing notes
+        DONE          : out std_logic;
+        RELOAD_STROBE : out std_logic; -- request core reload on this edge
+        DECREMENT     : out std_logic  -- request core subtract one on this edge
+    );
+end entity countdown_controller;
 
 architecture rtl of countdown_controller is
-  -- the timer can only be in one of these three states
-  type state_type is (PAUSED_STATE, RUNNING_STATE, DONE_STATE);
-  signal state : state_type := PAUSED_STATE;
-
-  -- these are one-clock pulses, so they get cleared every cycle
-  signal reload_reg, dec_reg : std_logic := '0';
+    type state_type is (PAUSED, RUNNING_STATE, DONE_STATE);
+    signal state, next_state : state_type;
 begin
-  process (CLOCK, RESETN)
-  begin
-    -- reset puts everything back into the paused state
-    if RESETN = '0' then
-      state <= PAUSED_STATE;
-      reload_reg <= '0';
-      dec_reg <= '0';
-    elsif rising_edge(CLOCK) then
-      -- default these to zero so each command only lasts one clock
-      reload_reg <= '0';
-      dec_reg <= '0';
-
-      -- load has the highest priority and also clears the done state
-      if LOAD_STROBE = '1' then
-        state <= PAUSED_STATE;
-
-      -- reset tells the core to copy the original loaded value back
-      elsif RESET_STROBE = '1' then
-        reload_reg <= '1';
-        state <= PAUSED_STATE;
-
-      -- pausing does not change the remaining time
-      elsif PAUSE_STROBE = '1' then
-        if state = RUNNING_STATE then state <= PAUSED_STATE; end if;
-
-      -- starting at zero goes straight to done instead of underflowing
-      elsif START_STROBE = '1' then
-        if unsigned(REMAINING) = 0 then
-          state <= DONE_STATE;
-        else
-          state <= RUNNING_STATE;
+    process (CLOCK, RESETN)
+    begin
+        if RESETN = '0' then
+            state <= PAUSED;
+        elsif rising_edge(CLOCK) then
+            state <= next_state;
         end if;
+    end process;
 
-      -- every tick asks the core to subtract one from the count
-      elsif state = RUNNING_STATE and TICK_PULSE = '1' then
-        if unsigned(REMAINING) = 0 then
-          state <= DONE_STATE;
-        elsif unsigned(REMAINING) = 1 then
-          -- this is the last decrement, so stop and set done too
-          dec_reg <= '1';
-          state <= DONE_STATE;
-        else
-          dec_reg <= '1';
+    -- Defaults make every output defined and prevent inferred latches.
+    process (state, RESETN, LOAD_STROBE, START_STROBE, PAUSE_STROBE,
+             RESET_STROBE, REMAINING, TICK_PULSE)
+    begin
+        next_state <= state;
+        RUNNING <= '0';
+        DONE <= '0';
+        RELOAD_STROBE <= '0';
+        DECREMENT <= '0';
+
+        if RESETN = '1' then
+            if state = RUNNING_STATE then
+                RUNNING <= '1';
+            elsif state = DONE_STATE then
+                DONE <= '1';
+            end if;
+
+            -- LOAD > RESET > PAUSE > START > tick. The I/O decoder normally
+            -- emits only one command; the priority also defines collisions.
+            if LOAD_STROBE = '1' then
+                next_state <= PAUSED;
+            elsif RESET_STROBE = '1' then
+                RELOAD_STROBE <= '1';
+                next_state <= PAUSED;
+            elsif PAUSE_STROBE = '1' then
+                -- DONE is sticky: PAUSE cannot acknowledge expiration.
+                if state /= DONE_STATE then
+                    next_state <= PAUSED;
+                end if;
+            elsif START_STROBE = '1' then
+                if state = PAUSED then
+                    if unsigned(REMAINING) = 0 then
+                        next_state <= DONE_STATE;
+                    else
+                        next_state <= RUNNING_STATE;
+                    end if;
+                end if;
+            elsif state = RUNNING_STATE then
+                if unsigned(REMAINING) = 0 then
+                    next_state <= DONE_STATE;
+                elsif TICK_PULSE = '1' then
+                    DECREMENT <= '1';
+                    if unsigned(REMAINING) = 1 then
+                        next_state <= DONE_STATE;
+                    end if;
+                end if;
+            end if;
         end if;
-      end if;
-    end if;
-  end process;
-
-  -- turn the current state into the two status bits software reads
-  RUNNING <= '1' when state = RUNNING_STATE else '0';
-  DONE <= '1' when state = DONE_STATE else '0';
-  RELOAD_STROBE <= reload_reg;
-  DECREMENT <= dec_reg;
-end architecture;
+    end process;
+end architecture rtl;
