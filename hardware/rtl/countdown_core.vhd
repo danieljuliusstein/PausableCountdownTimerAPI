@@ -6,34 +6,65 @@ use ieee.numeric_std.all;
 
 entity countdown_core is
     generic (
-        cycles_per_tenth    : integer;  
+        cycles_per_tenth    : positive;  -- clock cycles per 1/10s
     );
     port (
-        CLOCK         : in  std_logic;
-        RESETN        : in  std_logic; -- asynchronous system reset, active low
-        LOAD_STROBE   : in  std_logic; -- duration write; core loads independently
-        START_STROBE  : in  std_logic; -- START and RESUME share this command
-        PAUSE_STROBE  : in  std_logic;
-        RESET_STROBE  : in  std_logic; -- software reset: reload saved duration
-        REMAINING     : in  std_logic_vector(15 downto 0);
-        TICK_PULSE    : in  std_logic; -- core's tick-due indication before edge
-        RUNNING       : out std_logic; -- state/status; see timing notes
-        DONE          : out std_logic;
-        RELOAD_STROBE : out std_logic; -- request core reload on this edge
-        DECREMENT     : out std_logic  -- request core subtract one on this edge
+        CLOCK         : in    std_logic;
+        RESETN        : in    std_logic; 
+        RUNNING       : in    std_logic; 
+        LOAD_STROBE   : in    std_logic; 
+        LOAD_VALUE    : in    std_logic_vector(15 downto 0);
+        RELOAD_STROBE : in    std_logic;
+        DECREMENT     : in    std_logic;
+        REMAINING     : out   std_logic_vector(15 downto 0);
+        LOADED_VALUE  : out   std_logic_vector(15 down to 0);
+        TICK_PULSE    : out   std_logic;
     );
 end entity countdown_core;
 
 architecture behavioral of countdown_core is
-    signal duration_reg    : unsigned(15 downto 0);   -- target duration (in tenths of a second)
-    signal remaining_reg   : unsigned(15 downto 0);   -- countdown value still left on the timer
-    signal progress_reg    :    -- progress towards tenth of a second
-    signal tick_reg        : std_logic; --pulse every 0.1 seconds
+    signal current_duration    :    unsigned(15 downto 0);
+    signal remaining_duration  :    unsigned(15 downto 0);
+    signal tick_progress       :    integer range 0 to cycles_per_tenth - 1;
+begin
+    if (RUNNING = '1') and (tick_progress = cycles_per_tenth - 1) then
+        TICK_PULSE <= 1;
+    else
+        TICK_PULSE <= 0;
+    end if;
+    process(CLOCK, RESETN)
     begin
-        process(CLOCK)
-            if rising_edge(CLOCK) then
-                tick_reg <= '0';
-            
+        if (RESETN = '0') then
+            current_duration <= to_unsigned(0, 16);
+            remaining_duration <= to_unsigned(0, 16);
+            tick_progress <= 0;
+        elsif rising_edge(CLOCK) then
+            if (LOAD_STROBE = '1') or (RELOAD_STROBE = '1') then
+                tick_progress <= 0;
+            elsif (RUNNING = '1') then
+                if (tick_progress = cycles_per_tenth - 1) then
+                    tick_progress <= 0;
+                else
+                    tick_progress <= tick_progress + 1;
+                end if;
+            end if;
+            if (LOAD_STROBE = '1') then
+                current_duration <= unsigned(LOAD_VALUE);
+                remaining_duration <= unsigned(LOAD_VALUE);
+            elsif (RELOAD_STROBE = '1') then
+                remaining_duration <= current_duration;
+            elsif (DECREMENT = '1') and (RUNNING = '1') then
+                if (remaining_duration > 0) then
+                    remaining_duration <= remaining_duration - 1;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    LOADED_VALUE <= std_logic_vector(current_duration);
+    REMAINING    <= std_logic_vector(remaining_duration);
+                    
+end architecture behavioral;
 
 
 -- ===============================================================
