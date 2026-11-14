@@ -1,7 +1,6 @@
 # Controller signals and timing for review
 
-The implementation is hardware/rtl/countdown_controller.vhd, entity countdown_controller. The old controller.implement.vhd is only a pointer, not a second design unit.
-
+The implementation is hardware/rtl/countdown_controller.vhd, entity countdown_controller. The obsolete controller.implement.vhd sketch has been removed; compile only the canonical controller file.
 ## Signal meanings
 
 A command strobe is a synchronous one-clock notification from the I/O decoder, not a clock or held switch input.
