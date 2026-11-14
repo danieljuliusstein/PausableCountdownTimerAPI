@@ -1,3 +1,7 @@
+-- I'll do this file (Tyler)
+
+library ieee;
+
 -- ===============================================================
 -- PERSON 1: COUNTDOWN CORE
 -- File ownership: hardware/rtl/countdown_core.vhd
