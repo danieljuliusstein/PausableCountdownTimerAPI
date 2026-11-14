@@ -1,6 +1,25 @@
 -- I'll do this file (Tyler)
 
 library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity countdown_core is
+    port (
+        CLOCK         : in  std_logic;
+        RESETN        : in  std_logic; -- asynchronous system reset, active low
+        LOAD_STROBE   : in  std_logic; -- duration write; core loads independently
+        START_STROBE  : in  std_logic; -- START and RESUME share this command
+        PAUSE_STROBE  : in  std_logic;
+        RESET_STROBE  : in  std_logic; -- software reset: reload saved duration
+        REMAINING     : in  std_logic_vector(15 downto 0);
+        TICK_PULSE    : in  std_logic; -- core's tick-due indication before edge
+        RUNNING       : out std_logic; -- state/status; see timing notes
+        DONE          : out std_logic;
+        RELOAD_STROBE : out std_logic; -- request core reload on this edge
+        DECREMENT     : out std_logic  -- request core subtract one on this edge
+      );
+  end entity countdown_core;
 
 -- ===============================================================
 -- PERSON 1: COUNTDOWN CORE
