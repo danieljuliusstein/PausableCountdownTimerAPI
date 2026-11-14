@@ -1,3 +1,0 @@
--- The initial controller sketch has been consolidated into
--- countdown_controller.vhd (entity countdown_controller).
--- Compile that file; this file intentionally contains no design unit.
