@@ -18,8 +18,16 @@ entity countdown_core is
         DONE          : out std_logic;
         RELOAD_STROBE : out std_logic; -- request core reload on this edge
         DECREMENT     : out std_logic  -- request core subtract one on this edge
-      );
-  end entity countdown_core;
+    );
+end entity countdown_core;
+
+architecture behavioral of countdown_core is
+    begin
+        process(CLOCK)
+            if rising_edge(CLOCK) then
+                tick_reg <= '0';
+            
+
 
 -- ===============================================================
 -- PERSON 1: COUNTDOWN CORE
@@ -46,9 +54,9 @@ entity countdown_core is
 -- [ ] Reset both registers and the divider when RESETN is asserted.
 --
 -- INTERFACE TO DISCUSS WITH PEOPLE 2 AND 3
--- [ ] Inputs: CLOCK, RESETN, RUNNING, LOAD_STROBE, LOAD_VALUE,
+-- [X] Inputs: CLOCK, RESETN, RUNNING, LOAD_STROBE, LOAD_VALUE,
 --            RELOAD_STROBE, DECREMENT.
--- [ ] Outputs: REMAINING, LOADED_VALUE, TICK_PULSE.
+-- [X] Outputs: REMAINING, LOADED_VALUE, TICK_PULSE.
 -- [ ] Agree on the timing of TICK_PULSE and DECREMENT before coding.
 -- [ ] Decide command precedence when a new LOAD coincides with a tick.
 --
