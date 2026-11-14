@@ -5,6 +5,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity countdown_core is
+    generic (
+        cycles_per_tenth    : integer;  
+    );
     port (
         CLOCK         : in  std_logic;
         RESETN        : in  std_logic; -- asynchronous system reset, active low
@@ -22,6 +25,10 @@ entity countdown_core is
 end entity countdown_core;
 
 architecture behavioral of countdown_core is
+    signal duration_reg    : unsigned(15 downto 0);   -- target duration (in tenths of a second)
+    signal remaining_reg   : unsigned(15 downto 0);   -- countdown value still left on the timer
+    signal progress_reg    :    -- progress towards tenth of a second
+    signal tick_reg        : std_logic; --pulse every 0.1 seconds
     begin
         process(CLOCK)
             if rising_edge(CLOCK) then
