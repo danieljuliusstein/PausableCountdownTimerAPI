@@ -1,45 +1,94 @@
--- ===============================================================
--- PERSON 3: SCOMP MEMORY-MAPPED I/O
--- File ownership: hardware/rtl/countdown_io.vhd
--- Status: ASSIGNMENT COMMENTS ONLY; NO IMPLEMENTATION YET
--- ===============================================================
---
--- GOAL
--- Make the timer accessible from SCOMP assembly using IN and OUT.
--- Keep the bus decoding separate from the countdown hardware.
---
--- PROPOSED REGISTER MAP (MUST BE CONFIRMED WITH GROUP / TA)
--- [ ] Address 0x030: TIMER_VALUE
---     OUT: load a 16-bit duration in 0.1-second ticks.
---     IN:  read remaining ticks.
--- [ ] Address 0x031: TIMER_CONTROL
---     OUT 0: PAUSE; OUT 1: START / RESUME; OUT 2: RESET / RELOAD.
---     IN: bit 0 = RUNNING, bit 1 = DONE, all higher bits = zero.
--- [ ] Other writes to control register should have no effect.
---
--- REQUIRED BEHAVIOR
--- [ ] Decode the 11-bit I/O address and read/write signals.
--- [ ] Read incoming 16-bit IO_DATA without driving it on writes.
--- [ ] Drive the shared IO_DATA bus ONLY on selected reads.
--- [ ] Drive high impedance when not selected, including writes.
--- [ ] Convert writes into reliable one-transaction command strobes.
--- [ ] Avoid duplicate commands when IO_WRITE stays asserted.
--- [ ] Forward remaining and status values for CPU reads.
--- [ ] Preserve all existing peripheral addresses and behavior.
---
--- SHARED INTERFACE TO COORDINATE
--- [ ] Bus inputs/outputs: CLOCK, RESETN, IO_ADDR[10:0],
---     IO_READ, IO_WRITE, bidirectional IO_DATA[15:0].
--- [ ] Internal commands: LOAD_STROBE, LOAD_VALUE,
---     START_STROBE, PAUSE_STROBE, RESET_STROBE.
--- [ ] Internal status inputs: REMAINING, RUNNING, DONE.
--- [ ] Work with Person 4 to verify there is no bus contention.
---
--- TESTS / ACCEPTANCE
--- [ ] Confirm reads/writes at 0x030 and 0x031 work correctly.
--- [ ] Confirm other addresses never trigger a command.
--- [ ] Verify bus stays high-impedance when not selected for reads.
--- [ ] Share exact command encoding with Person 5.
---
--- BEFORE IMPLEMENTING
--- Read docs/api-contract.md and docs/roles/03-io-interface.md.
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity countdown_io is
+  port (
+    -- these are the signals coming from the shared SCOMP IO bus
+    CLOCK, RESETN, IO_READ, IO_WRITE : in std_logic;
+    IO_ADDR : in std_logic_vector(10 downto 0);
+    IO_DATA : inout std_logic_vector(15 downto 0);
+
+    -- these values come back from the timer for IN instructions
+    REMAINING : in std_logic_vector(15 downto 0);
+    RUNNING, DONE : in std_logic;
+
+    -- these are one-clock commands for the controller and core
+    LOAD_STROBE, START_STROBE, PAUSE_STROBE,
+      RESET_STROBE : out std_logic;
+    LOAD_VALUE : out std_logic_vector(15 downto 0)
+  );
+end entity;
+
+architecture rtl of countdown_io is
+  -- the timer uses two addresses and leaves all the other ones alone
+  constant TIMER_VALUE_ADDR : std_logic_vector(10 downto 0) :=
+    std_logic_vector(to_unsigned(16#030#, 11));
+  constant TIMER_CONTROL_ADDR : std_logic_vector(10 downto 0) :=
+    std_logic_vector(to_unsigned(16#031#, 11));
+
+  -- this remembers a write until IO_WRITE goes low again
+  signal write_active : std_logic := '0';
+
+  -- the output registers make every accepted write last one clock
+  signal load_reg, start_reg, pause_reg, reset_reg : std_logic := '0';
+  signal load_value_reg : std_logic_vector(15 downto 0) := (others => '0');
+  signal status_value : std_logic_vector(15 downto 0);
+begin
+  process (CLOCK, RESETN)
+  begin
+    -- reset clears any command that may have been waiting
+    if RESETN = '0' then
+      write_active <= '0';
+      load_reg <= '0';
+      start_reg <= '0';
+      pause_reg <= '0';
+      reset_reg <= '0';
+      load_value_reg <= (others => '0');
+    elsif rising_edge(CLOCK) then
+      -- commands default to zero so each one is only a one-clock pulse
+      load_reg <= '0';
+      start_reg <= '0';
+      pause_reg <= '0';
+      reset_reg <= '0';
+
+      if IO_WRITE = '0' then
+        -- another write can be accepted after the old one is finished
+        write_active <= '0';
+      elsif write_active = '0' then
+        write_active <= '1';
+
+        -- writing the value saves all 16 bits from the bus
+        if IO_ADDR = TIMER_VALUE_ADDR then
+          load_value_reg <= IO_DATA;
+          load_reg <= '1';
+
+        -- only zero, one, and two are valid control commands
+        elsif IO_ADDR = TIMER_CONTROL_ADDR then
+          case IO_DATA is
+            when x"0000" => pause_reg <= '1';
+            when x"0001" => start_reg <= '1';
+            when x"0002" => reset_reg <= '1';
+            when others => null;
+          end case;
+        end if;
+      end if;
+    end if;
+  end process;
+
+  -- software sees running in bit zero and done in bit one
+  status_value <= (15 downto 2 => '0') & DONE & RUNNING;
+
+  -- only this peripheral's selected reads are allowed to drive the bus
+  IO_DATA <= REMAINING when IO_READ = '1' and IO_WRITE = '0' and
+               IO_ADDR = TIMER_VALUE_ADDR else
+             status_value when IO_READ = '1' and IO_WRITE = '0' and
+               IO_ADDR = TIMER_CONTROL_ADDR else
+             (others => 'Z');
+
+  LOAD_STROBE <= load_reg;
+  START_STROBE <= start_reg;
+  PAUSE_STROBE <= pause_reg;
+  RESET_STROBE <= reset_reg;
+  LOAD_VALUE <= load_value_reg;
+end architecture;
