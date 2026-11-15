@@ -27,11 +27,7 @@ architecture behavioral of countdown_core is
     signal tick_progress       :    integer range 0 to divider - 1;
 begin
     -- creates a 0.1-second timing event from the SCOMP 10 MHz clock
-    if (RUNNING = '1') and (tick_progress = divider - 1) then
-        TICK_PULSE <= '1';
-    else
-        TICK_PULSE <= '0';
-    end if;
+    TICK_PULSE <= '1' when (RUNNING = '1') and (tick_progress = divider - 1) else '0';
     process(CLOCK, RESETN)
     begin
         -- resets both registers and the divider when RESETN is asserted
