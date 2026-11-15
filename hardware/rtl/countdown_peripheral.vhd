@@ -1,3 +1,27 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity countdown_peripheral is
+    generic (
+        -- Since the clock cycles every .1 s with 10 MHz, we get 1000000 ticks per cycle.
+        -- Goes into the countdown_core
+        TICKS_PER_DECIS : positive := 1000000
+    );
+    port (
+        -- What gets connected to the SCOMP
+        CLOCK : in std_logic;  
+        RESETN : in std_logic;
+        IO_ADDR : in std_logic_vector(10 downto 0);
+        IO_READ : in std_logic; 
+        IO_WRITE : in std_logic; 
+        IO_DATA  : inout std_logic_vector(15 downto 0) 
+    );
+end entity countdown_peripheral;
+
+
+
+
 -- ===============================================================
 -- PERSON 3: PERIPHERAL TOP-LEVEL WRAPPER
 -- File ownership: hardware/rtl/countdown_peripheral.vhd
