@@ -16,7 +16,7 @@ entity countdown_core is
         RELOAD_STROBE : in    std_logic;
         DECREMENT     : in    std_logic;
         REMAINING     : out   std_logic_vector(15 downto 0);
-        LOADED_VALUE  : out   std_logic_vector(15 down to 0);
+        LOADED_VALUE  : out   std_logic_vector(15 downto 0);
         TICK_PULSE    : out   std_logic;
     );
 end entity countdown_core;
@@ -28,9 +28,9 @@ architecture behavioral of countdown_core is
 begin
     -- creates a 0.1-second timing event from the SCOMP 10 MHz clock
     if (RUNNING = '1') and (tick_progress = divider - 1) then
-        TICK_PULSE <= 1;
+        TICK_PULSE <= '1';
     else
-        TICK_PULSE <= 0;
+        TICK_PULSE <= '0';
     end if;
     process(CLOCK, RESETN)
     begin
