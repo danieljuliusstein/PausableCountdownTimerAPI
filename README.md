@@ -1,68 +1,47 @@
-# Pausable Countdown Timer API — ECE 2031
+# Pausable Countdown Timer
 
-A reusable, memory-mapped countdown peripheral for Georgia Tech's SCOMP processor. The goal is to make time-based assembly programs easier to write by moving countdown, pause/resume, reset, and expiration tracking into VHDL hardware.
+This project adds a memory-mapped countdown timer to the ECE 2031 SCOMP
+processor. The timer counts in tenths of a second and supports loading,
+starting, pausing, resuming, and resetting without a software delay loop.
 
-## Project schedule and approvals
-
-**Week 1 (November 8–14): finish the reusable countdown API.**  
-**Week 2 (November 15–21): implement, test and present the rocketship game.**
-
-- **[Full project timeline and individual deadlines](docs/timeline.md)**
-- **[Required five-person API contract sign-off](docs/api-contract.md#required-team-review-and-sign-off)**
-- **[Rocketship MVP game plan](docs/game-plan.md)**
-
-## Five workstreams
-
-| Role | Owner's focus | Main files |
-| --- | --- | --- |
-| 1. Countdown core | Duration register, remaining register, 0.1-second tick generation | hardware/rtl/countdown_core.vhd |
-| 2. Controller | START, PAUSE, RESUME, RESET and DONE state behavior | hardware/rtl/countdown_controller.vhd |
-| 3. SCOMP interface | Memory-mapped reads/writes and peripheral wrapper | hardware/rtl/countdown_io.vhd, hardware/rtl/countdown_peripheral.vhd |
-| 4. Integration & verification | Quartus wiring, simulation and hardware tests | hardware/quartus/, hardware/sim/countdown_tb.vhd |
-| 5. Assembly demo & game | Countdown API demonstration, then rocketship assembly game | software/CountdownDemo.asm |
-
-Each person starts with the **comment checklist inside their assigned file**, reads [the proposed API contract](docs/api-contract.md) and [their role guide](docs/roles/), and writes their implementation from scratch.
-
-## Proposed public register API
+## I/O interface
 
 | Address | Read | Write |
 | --- | --- | --- |
-| 0x030 — TIMER_VALUE | 16-bit remaining deciseconds | Load new duration; clear DONE and pause |
-| 0x031 — TIMER_CONTROL | Status bit 0 RUNNING; bit 1 DONE | 0 PAUSE, 1 START/RESUME, 2 RESET (reload and pause) |
+| `0x030` | Remaining time in deciseconds | Load a new duration |
+| `0x031` | Bit 0: running, bit 1: done | `0`: pause, `1`: start/resume, `2`: reset |
 
-These addresses and semantics are proposed until the team and TA approve them.
+Loading a value pauses the timer and clears DONE. Reset restores the most
+recently loaded value and pauses the timer. DONE remains set after the timer
+reaches zero until a load or reset command is issued.
 
-## Repository layout
+## Source files
 
-~~~text
-hardware/
-  rtl/                    # Comment-only VHDL assignments (Roles 1–3)
-  sim/                    # Comment-only testbench assignment (Role 4)
-  quartus/                # Local course-starter integration instructions (Role 4)
-software/                 # Comment-only API demo + rocketship assignments (Roles 2, 3, 5)
-docs/
-  api-contract.md         # Contract + five-person typed sign-off
-  timeline.md             # Two-week dated team deadlines
-  game-plan.md            # Rocketship MVP requirements
-  architecture.md         # Datapath, control and bus boundaries
-  test-plan.md            # Required acceptance tests
-  decisions.md            # Open design questions
-  roles/                  # Individual developer instructions
-.github/                  # Pull request template
-~~~
+- `countdown_core.vhd` stores the duration and generates the 0.1-second tick.
+- `countdown_controller.vhd` handles the running, paused, and done states.
+- `countdown_io.vhd` implements SCOMP address decoding and the shared data bus.
+- `countdown_peripheral.vhd` connects the three modules.
+- `CountdownDemo.asm` provides a switch-controlled hardware demo.
 
-## Getting started as a team
+## Simulation
 
-1. Review and agree on docs/api-contract.md **before** anyone writes code.
-2. Each developer creates their own role branch and begins implementing the commented checklist in their owned file.
-3. Person 4 prepares the authorized Lab 8 Quartus starter locally (see hardware/quartus/README.md). Starter files are intentionally not republished here.
-4. Develop and review each module using pull requests; coordinate changes to module signals in the API contract.
-5. Add the hardware to SCOMP, run simulations, and finally demonstrate loading, countdown, pause/resume, reset and DONE on the FPGA.
+With GHDL installed, run:
 
-The Lab 8 starter uses an 11-bit I/O address, shared 16-bit I/O bus, and 10 MHz processor clock. The proposed API uses 0.1-second ticks. The exact addresses and integration method must be checked against the course project.
+```sh
+hardware/sim/run_all_tests.sh
+```
 
-## Rocketship game demonstration — Week 2
+The tests cover loading, countdown, pause/resume, reset, expiration,
+zero-duration behavior, invalid commands, and bus isolation.
 
-The rocketship game is **planned for this project** after the reusable timer API is proven in Week 1. A countdown controls each rocket stage; players can cash out or risk their unbanked virtual credits in increasingly risky multiplier rounds. Rocket, credit, and crash mechanics belong in assembly, **never in the timer hardware**. See [the game plan](docs/game-plan.md).
+## Demo controls
 
-**Public repository note:** Confirm course sharing rules before adding starter files, schematics, or handouts. Do not commit generated Quartus output.
+| Switch | Action |
+| --- | --- |
+| SW0 | Start or resume |
+| SW1 | Pause |
+| SW2 | Reset to the loaded duration |
+| SW3 | Load 5.0 seconds |
+
+The remaining decisecond count is shown on HEX0 and DONE is shown on LED1.
+Quartus setup notes are in `hardware/quartus/README.md`.

@@ -1,18 +1,23 @@
-# Quartus / SCOMP Lab 8 integration (Role 4)
+# Quartus setup
 
-The user's Lab 8 archive is named SCOMP_Lab8_Fall25.zip. Its top-level diagram is SCOMP_System.bdf; the starter also contains SCOMP.vhd, TIMER.vhd, clk_div.vhd, I/O peripheral files, PLL IP and project settings.
+The course Lab 8 starter project is not included in this repository. These
+instructions assume it is extracted to `hardware/quartus/course-starter/`.
 
-**This public repository does not republish the course starter files.** Confirm permission to share them. For local development only, extract the starter project into hardware/quartus/course-starter/ (ignored by git), keeping its original relative layout. You can later add only allowed modified files or an integration patch.
+1. Add `source ../countdown_files.qsf` to the starter project's QSF file.
+2. Run Analysis and Elaboration and fix any VHDL or width errors.
+3. Generate a symbol for `countdown_peripheral` and add it to
+   `SCOMP_System.bdf`.
+4. Connect `CLOCK` to the 10 MHz clock and `RESETN` to the active-low reset.
+5. Connect `IO_ADDR[10..0]`, `IO_READ`, `IO_WRITE`, and `IO_DATA[15..0]` to
+   the existing SCOMP I/O bus.
+6. Confirm that no other peripheral decodes addresses `0x030` or `0x031`.
+7. Compile and check for width mismatches or unintended multiple drivers.
+8. Assemble `software/CountdownDemo.asm` and use its MIF as the SCOMP memory
+   initialization file.
 
-Integration checklist:
-1. Open SCOMP.qpf from the local extracted starter project.
-2. Add ../ or absolute paths to hardware/rtl/countdown_core.vhd, countdown_controller.vhd, countdown_io.vhd, countdown_peripheral.vhd in Quartus settings. If copied to a new project directory, update paths accordingly.
-3. Generate a symbol for countdown_peripheral and place it in SCOMP_System.bdf.
-4. Wire CLOCK to the 10 MHz SCOMP clock, RESETN to the active-low reset, IO_ADDR[10..0], IO_READ, IO_WRITE, and IO_DATA[15..0] to the existing shared bus.
-5. Confirm no other peripheral uses 0x030/0x031.
-6. Recompile and check for no multiple-driver or width-mismatch errors.
-7. Assemble CountdownDemo.asm and make sure the assembled MIF filename matches the init_file expected by SCOMP.vhd.
+Keep the timer modules separate. `countdown_peripheral` is the only module
+that needs to be placed in the block diagram.
 
-Starter inspection notes: SCOMP.vhd in the uploaded version refers to SimpleDemo.mif; ensure a matching generated MIF exists. It also contains an unusual ADD decode literal "0004"; investigate any Quartus syntax error before debugging the peripheral.
-
-Use the local Quartus pin mapping and board setup from the provided starter. Do not commit db/, output_files/, generated PLL simulation output, or instructor-owned source without permission.
+Before programming the FPGA, verify that SW3 loads 50, SW0 starts, SW1 pauses,
+and SW2 resets. HEX0 should show the remaining deciseconds and LED1 should
+remain on after the timer expires.

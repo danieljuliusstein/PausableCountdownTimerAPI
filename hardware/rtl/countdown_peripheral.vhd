@@ -98,39 +98,3 @@ begin
         );
 
 end architecture structural;
-
-
-
--- ===============================================================
--- PERSON 3: PERIPHERAL TOP-LEVEL WRAPPER
--- File ownership: hardware/rtl/countdown_peripheral.vhd
--- Status: IMPLEMENTED
--- ===============================================================
---
--- GOAL
--- Connect the three independently developed modules into one
--- SCOMP peripheral that Person 4 can place in the Quartus system.
---
--- REQUIRED BEHAVIOR
--- [x] Instantiate Person 1's countdown_core.
--- [x] Instantiate Person 2's countdown_controller.
--- [x] Instantiate your countdown_io register/bus interface.
--- [x] Wire duration, remaining time, tick and command signals.
--- [x] Expose SCOMP clock, reset, address, read, write and data bus.
--- [x] Support a configurable tick-divider generic for fast tests.
--- [x] Keep rocket game calculations and assembly logic OUT of VHDL.
---
--- INTEGRATION HANDOFF TO PERSON 4
--- [ ] Agree on top-level port names and bit widths.
--- [ ] Confirm SCOMP uses 10 MHz CLOCK and active-low RESETN.
--- [ ] Explain whether IO_DATA is driven or tri-stated on each read.
--- [ ] Provide a Quartus-compatible peripheral symbol/interface.
--- [ ] Document any shared interface changes in api-contract.md.
---
--- TESTS / ACCEPTANCE
--- [ ] All three hardware modules connect with no width mismatch.
--- [ ] Register commands affect countdown only as specified.
--- [ ] Reading remaining and status does not alter timer state.
---
--- BEFORE IMPLEMENTING
--- Read docs/api-contract.md and docs/roles/03-io-interface.md.
