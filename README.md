@@ -8,8 +8,8 @@ starting, pausing, resuming, and resetting without a software delay loop.
 
 | Address | Read | Write |
 | --- | --- | --- |
-| `0x030` | Remaining time in deciseconds | Load a new duration |
-| `0x031` | Bit 0: running, bit 1: done | `0`: pause, `1`: start/resume, `2`: reset |
+| `0x070` | Remaining time in deciseconds | Load a new duration |
+| `0x071` | Bit 0: running, bit 1: done | `0`: pause, `1`: start/resume, `2`: reset |
 
 Loading a value pauses the timer and clears DONE. Reset restores the most
 recently loaded value and pauses the timer. DONE remains set after the timer
