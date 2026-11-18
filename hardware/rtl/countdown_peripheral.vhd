@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 -- This is a wrapper that connects countdown_io, countdown_controller and countdown_core
--- into one SCOMP peripheral at I/O addresses 0x030 / 0x031.
+-- into one SCOMP peripheral at I/O addresses 0x070 / 0x071.
 -- This is purely structural and has no processes or logic
 
 
