@@ -90,5 +90,5 @@ Switches:      EQU     &H000
 LEDs:          EQU     &H001
 Hex0:          EQU     &H004
 Hex1:          EQU     &H005
-TimerValue:    EQU     &H030
-TimerControl:  EQU     &H031
+TimerValue:    EQU     &H070
+TimerControl:  EQU     &H071
