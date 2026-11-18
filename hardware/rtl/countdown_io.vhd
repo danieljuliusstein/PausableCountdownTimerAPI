@@ -23,9 +23,9 @@ end entity;
 architecture rtl of countdown_io is
   -- the timer uses two addresses and leaves all the other ones alone
   constant TIMER_VALUE_ADDR : std_logic_vector(10 downto 0) :=
-    std_logic_vector(to_unsigned(16#030#, 11));
+    std_logic_vector(to_unsigned(16#070#, 11));
   constant TIMER_CONTROL_ADDR : std_logic_vector(10 downto 0) :=
-    std_logic_vector(to_unsigned(16#031#, 11));
+    std_logic_vector(to_unsigned(16#071#, 11));
 
   -- this remembers a write until IO_WRITE goes low again
   signal write_active : std_logic := '0';
