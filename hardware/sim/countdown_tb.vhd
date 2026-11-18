@@ -11,11 +11,11 @@ end entity;
 architecture test of countdown_tb is
   constant CLOCK_PERIOD : time := 10 ns;
   constant TIMER_VALUE_ADDR : std_logic_vector(10 downto 0) :=
-    std_logic_vector(to_unsigned(16#030#, 11));
+    std_logic_vector(to_unsigned(16#070#, 11));
   constant TIMER_CONTROL_ADDR : std_logic_vector(10 downto 0) :=
-    std_logic_vector(to_unsigned(16#031#, 11));
+    std_logic_vector(to_unsigned(16#071#, 11));
   constant UNUSED_ADDR : std_logic_vector(10 downto 0) :=
-    std_logic_vector(to_unsigned(16#032#, 11));
+    std_logic_vector(to_unsigned(16#072#, 11));
   constant Z_WORD : std_logic_vector(15 downto 0) := (others => 'Z');
 
   signal clock : std_logic := '0';
