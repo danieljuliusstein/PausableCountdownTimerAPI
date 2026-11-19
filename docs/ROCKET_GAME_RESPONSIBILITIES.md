@@ -1,188 +1,119 @@
-# Rocketship Game: 5-Person Team Responsibilities & Architecture
-
-**Project:** ECE 2031 SCOMP Pausable Countdown Timer Demonstration  
-**Target Platform:** Georgia Tech SCOMP Processor on Altera DE10-Lite FPGA  
-**Primary Language:** SCOMP Assembly (`scasm`)  
-**Peripheral Addresses:** `TIMER_VALUE` = `0x070`, `TIMER_CONTROL` = `0x071`
+# Rocket Multiplier Game: Push-Your-Luck Survival Architecture
+**Demonstration Application for the PausableCountdownTimerAPI Peripheral**  
+**Course:** ECE 2031 Digital Design Laboratory  
+**Target Hardware:** Altera DE10-Lite FPGA Board with SCOMP  
+**Hardware API Sources:** `hardware/rtl/countdown_peripheral.vhd` (in `PausableCountdownTimerAPI`)  
+**Memory-Mapped Addresses:** `TIMER_VALUE` = `0x070`, `TIMER_CONTROL` = `0x071`
 
 ---
 
-## 1. Overview & Collaboration Architecture
+## 1. Game Concept: Push-Your-Luck Survival (No "Win" Screen)
 
-Because the SCOMP assembler (`scasm`) compiles a single flat `.asm` file without native multi-file linking, work is organized into **modular subroutines** sharing a **strict RAM variable contract**. 
-
-Team members 2, 3, and 4 develop and test their subroutines independently as modular blocks. Person 1 defines timing tables, validates corner cases, and leads hardware testing. Person 5 integrates all routines into the master game program (`software/RocketGame.asm`).
+There is **no arbitrary "Win" condition** in this game. You either choose to cash out and walk away with your profit for the round, or you keep pushing your luck until you crash and **lose all your money (Bankruptcy / Game Over)**:
 
 ```mermaid
 flowchart TD
-    P3["Person 3: Controls & Timer API<br/>(Inputs, Debouncing, Timer 0x070/0x071)"] --> P5["Person 5: Integration & Game Coordinator<br/>(Master State Machine & Assembly Integration)"]
-    P2["Person 2: Risk & RNG Engine<br/>(PRNG, Multipliers, Crash Thresholds)"] --> P5
-    P4["Person 4: Displays & Visuals<br/>(HEX BCD Decoders, LED Altitude Bars)"] --> P5
-    P1["Person 1: Timing & QA Lead<br/>(Duration Tables, Race Conditions, FPGA Verification)"] -. verifies & tests .-> P5
+    Ready["READY / SET WAGER<br/>(Show Bank on HEX2/3)"] --> Launch["SW0: LAUNCH"]
+    Launch --> Loop["30-VALUE ASCENT LOOP<br/>(Money Climbs on 10 LEDs,<br/>Timer Decrements via 0x070)"]
+    
+    Loop --> CashOut["SW1: CASH OUT<br/>(Bank round profit, freeze timer 0x071=0)"]
+    CashOut --> CheckMore{"Keep Playing?"}
+    CheckMore -- Next Round --> Ready
+    
+    Loop --> Pause["SW2: PAUSE / RESUME<br/>(0x071=0 pauses VHDL timer & loop;<br/>0x071=1 resumes)"]
+    Pause --> Loop
+    
+    Loop --> Bust["CRASH or TIMEOUT<br/>(TimerDone bit 1 of 0x071=1 or Random Crash)"]
+    Bust --> Deduct["Lose Round Stake<br/>(Deduct from Bank)"]
+    Deduct --> CheckBank{"Bank > 0?"}
+    
+    CheckBank -- Yes --> NextRound["SW3: NEW ROUND"]
+    NextRound --> Ready
+    CheckBank -- No (Bank = 0) --> Bankrupt["GAME OVER / BANKRUPT<br/>(All LEDs OFF, '0000' on HEX)"]
 ```
+
+### Core Gameplay Loop:
+1. **The Round:** 
+   - Player stakes credits (e.g. 10 credits).
+   - Pressing **SW0 (Launch)** loads duration into the `PausableCountdownTimerAPI` (`0x070`), starts countdown (`0x071 <= 1`), and initiates the 30-value climb.
+   - The game sequentially steps through an array of **30 increasing values**.
+2. **Visual Feedback on 10 LEDs (`0x001`):**
+   - The 10 board LEDs act as a thermometer meter displaying the rising money.
+   - Every 3 steps illuminates an additional LED:
+     - Steps 0–2: 1 LED (`0x0001`)
+     - Steps 3–5: 2 LEDs (`0x0003`)
+     - ...
+     - Steps 27–29: 10 LEDs (`0x03FF`) (Maximum round multiplier).
+3. **Player Decisions (Switches at `0x000`):**
+   - **SW0 (Launch):** Starts round and countdown.
+   - **SW1 (Cash Out):** Locks in `CurrentMoney`, writes `0` to `0x071` to freeze the timer, adds winnings to `BankedCredits`, and safely banks the profit for that round.
+   - **SW2 (Pause / Resume):** Calls the hardware timer API (`0x071 <= 0` to pause, `0x071 <= 1` to resume). Freezes both the VHDL hardware timer and the 30-value climb. All decision inputs are locked out while paused.
+   - **SW3 (Replay / Next Round):** Prepares state for the next launch.
+4. **Crash, Timeout & Bankruptcy:**
+   - If the player gets too greedy and does not cash out before:
+     - The hardware timer reaches 0 (Bit 1 `DONE` of `0x071` trips high), OR
+     - The loop reaches the randomized `CrashThreshold` (1..30).
+   - **Bust!** The stake is lost, LEDs flash an alternating hazard pattern, and `BankedCredits` is reduced.
+   - **Game Over:** If `BankedCredits <= 0`, player is bankrupt. The game locks down until full board reset.
 
 ---
 
-## 2. Shared RAM Contract (Interface)
+## 2. Hardware Timer Integration (`PausableCountdownTimerAPI`)
 
-To prevent variable name collisions and ensure subroutines communicate seamlessly, all team members adhere to these standardized RAM variables:
+The countdown is handled completely in hardware by the VHDL peripheral developed in this repo (`hardware/rtl/countdown_peripheral.vhd`), which combines:
+- `countdown_core.vhd`: Tick generator (10 MHz / 1,000,000 = 0.1s tick) and decisecond counter.
+- `countdown_controller.vhd`: Running/Paused/Done state logic and reload strobes.
+- `countdown_io.vhd`: SCOMP 11-bit address decoding and tri-state bus isolation.
+
+### Register Interface:
+| Address | Access | Function |
+| :--- | :---: | :--- |
+| `0x070` (`TIMER_VALUE`) | **WRITE** | Loads duration in deciseconds, pauses timer, clears `DONE`. |
+| `0x070` (`TIMER_VALUE`) | **READ** | Reads live remaining deciseconds (drives HEX displays). |
+| `0x071` (`TIMER_CONTROL`) | **WRITE** | `0` = Pause, `1` = Start/Resume, `2` = Reset. |
+| `0x071` (`TIMER_CONTROL`) | **READ** | Bit 0 = `RUNNING` status, Bit 1 = `DONE` completion flag. |
+
+---
+
+## 3. Team Responsibilities & Template File Allocation
+
+| Role | Developer | Deliverable File | Plain-English Instructions |
+| :--- | :---: | :--- | :--- |
+| **Role 1: Timer API** | **Person 1** | [Person1_TimerAPI.asm](file:///Users/danny/Projects/PausableCountdownTimerAPI/software/Person1_TimerAPI.asm) | Owns low-level subroutines interfacing with `0x070` and `0x071`. Implements duration loading, starting, pausing, resuming, and polling `DONE`. Validates zero-tick edge cases on FPGA. |
+| **Role 2: Multiplier Table & Crash** | **Person 2** | [Person2_MultiplierTable.asm](file:///Users/danny/Projects/PausableCountdownTimerAPI/software/Person2_MultiplierTable.asm) | Defines the 30 pre-computed payout values in RAM. Implements step advance and the pseudorandom crash threshold roll (LFSR) so the rocket crashes at unexpected heights. |
+| **Role 3: Switch Controls & Debounce** | **Person 3** | [Person3_SwitchControls.asm](file:///Users/danny/Projects/PausableCountdownTimerAPI/software/Person3_SwitchControls.asm) | Handles reading `0x000`. Writes rising-edge detection (release-to-trigger) so held switches don't spam. Handles Cash Out (SW1), Launch (SW0), Pause toggle (SW2), and Reset (SW3). |
+| **Role 4: LED Money Meter & HEX** | **Person 4** | [Person4_DisplaysLEDs.asm](file:///Users/danny/Projects/PausableCountdownTimerAPI/software/Person4_DisplaysLEDs.asm) | Translates the 30 steps into 10 LEDs on `0x001` (thermometer bar). Handles Cash-Out flash, crash hazard strobe, and outputs remaining time / bank balance to HEX displays (`0x004` & `0x005`). |
+| **Role 5: Master Integration & FSM** | **Person 5** | [Person5_RocketGame_Master.asm](file:///Users/danny/Projects/PausableCountdownTimerAPI/software/Person5_RocketGame_Master.asm) | Lead integrator. Manages the master state loop (WaitLaunch $\rightarrow$ Running $\rightarrow$ CashOut / Bust $\rightarrow$ Bankrupt Check $\rightarrow$ Replay). Merges all 4 subroutines into `RocketGame.asm`. |
+
+---
+
+## 4. Shared RAM Contract (SCOMP Memory Map)
+
+All 5 developers write their subroutines to read/write these exact standardized variables:
 
 ```asm
 ; ============================================================
-; SHARED MEMORY CONTRACT (RAM VARIABLES)
+; SHARED GAME STATE VARIABLES (SCOMP RAM)
 ; ============================================================
-BankedCredits:   DW 100     ; Total banked credits carried across rounds
-CurrentStake:    DW 10      ; Current round wager amount
-CurrentStage:    DW 1       ; Current active stage (1, 2, or 3)
-CurrentPayout:   DW 0       ; Calculated winnings for current stage
-RemainingTicks:  DW 0       ; Deciseconds remaining (read from 0x070)
-TimerDoneFlag:   DW 0       ; Timer expired flag (0 = running/paused, 1 = done)
-CrashFlag:       DW 0       ; Crash result (0 = safe/survived, 1 = crashed)
-GamePaused:      DW 0       ; Pause status (0 = active, 1 = paused)
-PRNG_Seed:       DW &HACE1  ; Seed state for pseudorandom generator
+BankedCredits:   DW 100     ; Total player bankroll (game over when <= 0)
+CurrentStake:    DW 10      ; Wager for the active round
+CurrentValueIdx: DW 0       ; Step index (0 to 29) in 30-value array
+CurrentMoney:    DW 0       ; Current payout looked up from array
+CrashThreshold:  DW 24      ; Randomized crash cutoff index (8 to 30)
+RemainingTicks:  DW 0       ; Deciseconds read from 0x070
+TimerDoneFlag:   DW 0       ; Bit 1 of 0x071 (1 = expired/timeout)
+GamePaused:      DW 0       ; Pause status (0 = running, 1 = paused)
+CrashFlag:       DW 0       ; Crash status (1 = crashed, 0 = safe)
+PRNG_Seed:       DW &HACE1  ; Seed for pseudo-random crash generator
 ```
 
 ---
 
-## 3. Individual Responsibilities
+## 5. Course Project Summary Report (ECE 2031 Deliverable)
 
----
-
-### **Person 1: Timing Calibration & Hardware Verification Lead**
-* **Title:** QA, Hardware Validation & Timing Lead
-* **Primary Objective:** Ensure timer integration is rock-solid, define game pace/durations, and lead board-level verification on the DE10-Lite FPGA.
-
-#### Deliverables & Responsibilities:
-1. **Stage Duration & Pacing Specification:**
-   - Define decisecond values for each rocket stage in software:
-     - **Stage 1 (Launch):** 5.0 seconds (50 deciseconds)
-     - **Stage 2 (Orbit/Boost):** 3.5 seconds (35 deciseconds)
-     - **Stage 3 (Deep Space):** 2.0 seconds (20 deciseconds)
-   - Validate that durations give players sufficient reaction time without stalling gameplay.
-2. **Timing Edge & Corner Case Testing:**
-   - **Race Conditions:** Verify behavior if a player presses "Cash Out" or "Risk" on the exact tick the timer reaches 0 (`DONE = 1`).
-   - **Rapid Pause/Resume:** Verify no time loss occurs when toggling pause repeatedly during a stage countdown.
-   - **Stage Reset Cleanness:** Verify that reloading duration between stages clears `DONE` without glitching the controller.
-3. **Hardware Test Protocol & Demonstration Evidence:**
-   - Maintain the FPGA test bench and run end-to-end check-offs.
-   - Record and log proof of all acceptance criteria (video demo, state transitions, win/loss verification).
-
----
-
-### **Person 2: Risk Engine & Multiplier Math (PRNG)**
-* **Title:** Gameplay Odds, Randomness & Multiplier Engineer
-* **Primary Objective:** Implement pseudorandom number generation and multiplier arithmetic in SCOMP assembly.
-
-#### Deliverables & Responsibilities:
-1. **16-bit PRNG Routine (`Sub_PRNG`):**
-   - Implement a lightweight SCOMP PRNG (such as an LFSR or LCG algorithm using shift/XOR/add).
-   - Re-seed PRNG dynamically from switch toggle jitter or timer ticks to avoid repetitive sequences.
-2. **Crash Probability Evaluation (`Sub_RollCrash`):**
-   - Compare PRNG output against calibrated risk thresholds:
-     - **Stage 1:** ~10% crash chance
-     - **Stage 2:** ~30% crash chance
-     - **Stage 3:** ~60% crash chance
-   - Set `CrashFlag = 1` on failure, `CrashFlag = 0` on survival.
-3. **Multiplier Arithmetic (`Sub_CalcPayout`):**
-   - Because SCOMP lacks a hardware multiplier/divider, implement fixed multipliers using shift-and-add operations:
-     - **Stage 1 (1.5×):** $\text{Payout} = \text{Stake} + (\text{Stake} \gg 1)$
-     - **Stage 2 (3.0×):** $\text{Payout} = (\text{Stake} \ll 1) + \text{Stake}$
-     - **Stage 3 (6.0×):** $\text{Payout} = (\text{Stake} \ll 2) + (\text{Stake} \ll 1)$
-   - Store result in `CurrentPayout`.
-
----
-
-### **Person 3: Player Controls & Timer I/O Wrapper**
-* **Title:** I/O Controls & Peripheral API Specialist
-* **Primary Objective:** Interface with the memory-mapped countdown timer peripheral (`0x070`, `0x071`) and implement clean input debouncing/edge detection.
-
-#### Deliverables & Responsibilities:
-1. **Input Edge Detection & Debounce (`Sub_PollInputs`):**
-   - Read switches/pushbuttons (`0x000`).
-   - Implement single-edge detection (requiring button release before re-triggering) so players cannot hold switches down to spam commands.
-   - Map controls cleanly:
-     - `SW0`: Launch / Next Stage (Risk)
-     - `SW1`: Cash Out
-     - `SW2`: Pause / Resume
-     - `SW3`: Reset / Replay Round
-2. **Timer Peripheral API Wrappers:**
-   - `Sub_TimerLoad`: Loads AC into `TIMER_VALUE` (`0x070`).
-   - `Sub_TimerStart`: Writes `1` to `TIMER_CONTROL` (`0x071`).
-   - `Sub_TimerPause`: Writes `0` to `TIMER_CONTROL` (`0x071`).
-   - `Sub_TimerReset`: Writes `2` to `TIMER_CONTROL` (`0x071`).
-   - `Sub_TimerCheck`: Reads `0x071`, extracts Bit 1 (`DONE`) into `TimerDoneFlag`, and reads `0x070` into `RemainingTicks`.
-3. **Pause Interlock:**
-   - Guarantee that when `GamePaused = 1`, all player action inputs (Cash Out, Risk) are locked until unpaused.
-
----
-
-### **Person 4: Displays, HEX Decoding & Visuals**
-* **Title:** User Interface & Visual Feedback Developer
-* **Primary Objective:** Provide clear, dynamic visual feedback on DE10-Lite 7-segment displays (HEX) and LEDs for game states, timers, and animations.
-
-#### Deliverables & Responsibilities:
-1. **LED Altitude & Flight Progress (`Sub_UpdateLEDs`):**
-   - Map LEDs (`0x001`) to reflect rocket progress:
-     - **Launch & Ascent:** Progressive bar fill from bottom to top (`0000000001` $\rightarrow$ `0000000111` $\rightarrow$ `1111111111`).
-     - **Crash Animation:** Alternating pattern flash (`1010101010` / `0101010101`).
-     - **Cash Out / Win Animation:** Full bar strobe / marquee pattern.
-2. **HEX Display Decoding (`Sub_UpdateHEX`):**
-   - **Remaining Time:** Output `RemainingTicks` formatted on `HEX1-HEX0` (e.g., `3.5` seconds).
-   - **Score / Multiplier / Status:** Output stage or banked credits on `HEX3-HEX2`.
-   - **Text Messages:** Display alphanumeric status codes:
-     - `"GO"` on launch
-     - `"PAUS"` on pause
-     - `"WIN"` on successful cash-out
-     - `"LOSE"` on crash or timeout
-
----
-
-### **Person 5: Game Loop Coordinator & Master Integration**
-* **Title:** Lead Assembly Integrator & Game Architect
-* **Primary Objective:** Maintain the master file `software/RocketGame.asm`, architect the master finite state machine (FSM), and merge everyone's subroutines.
-
-#### Deliverables & Responsibilities:
-1. **Master Program Architecture (`RocketGame.asm`):**
-   - Establish memory layout, subroutine ordering, and RAM variable table.
-   - Lead merge sessions to integrate subroutines from Persons 2, 3, and 4.
-2. **Master Finite State Machine (FSM):**
-   - Implement the game loop states:
-     - `STATE_TITLE_READY`: Display banked credits; wait for Launch button press.
-     - `STATE_STAGE_START`: Deduct stake, load stage duration via Person 3 API, start timer.
-     - `STATE_RUNNING`: Poll inputs, update displays, monitor `TimerDoneFlag`.
-     - `STATE_PAUSED`: Freeze hardware timer, halt animations, wait for resume.
-     - `STATE_RISK_CHECK`: Trigger Person 2 crash roll. If survived $\rightarrow$ advance stage; if failed $\rightarrow$ `STATE_CRASH`.
-     - `STATE_CASHOUT`: Calculate payout, add to `BankedCredits`, display victory animation.
-     - `STATE_CRASH / TIMEOUT`: Display lose animation, deduct stake, check if player has remaining credits.
-     - `STATE_REPLAY`: Allow new game round without FPGA reconfiguration.
-
----
-
-## 4. Responsibility Matrix
-
-| Deliverable / Feature | Primary Owner | Secondary / Support |
-| :--- | :---: | :---: |
-| **Timer API Calls (`0x070`, `0x071`)** | Person 3 | Person 1 |
-| **Input Edge Detection / Debounce** | Person 3 | Person 5 |
-| **PRNG Algorithm & Crash Roll** | Person 2 | Person 5 |
-| **Multiplier Math (1.5×, 3×, 6×)** | Person 2 | Person 5 |
-| **HEX 7-Segment Drivers & Text Codes** | Person 4 | Person 3 |
-| **LED Altitude Bar & Visual FX** | Person 4 | Person 1 |
-| **Stage Timing Table (5.0s, 3.5s, 2.0s)** | Person 1 | Person 5 |
-| **Corner Cases & Hardware Timing Tests** | Person 1 | Person 4 |
-| **Master State Machine & Game Integration** | Person 5 | All Members |
-| **Final Board Demo & Video Check-off** | Person 1 | Person 5 |
-
----
-
-## 5. Development & Assembly Milestones
-
-1. **Phase 1: Subroutine Staging (Independent)**
-   - Persons 2, 3, 4 write and self-test their isolated code blocks using scratch labels.
-   - Person 1 establishes timing tables and verifies register stability on hardware.
-2. **Phase 2: Master Assembly Merge**
-   - Person 5 combines all modules into `software/RocketGame.asm`.
-   - Verify zero label collisions and that RAM addresses match the Shared Contract.
-3. **Phase 3: Final Verification on DE10-Lite**
-   - Person 1 and Person 5 run full gameplay cycles on the FPGA board.
-   - Confirm pause integrity, cash-out accuracy, crash probabilities, and replayability.
+Refer to [PROJECT_SUMMARY_GUIDE.md](file:///Users/danny/Projects/PausableCountdownTimerAPI/docs/PROJECT_SUMMARY_GUIDE.md) for strict grading compliance with `2031_AssignmentSheet_ProjectSummary (1).pdf`:
+* **Length:** Under 650 words total.
+* **Topic:** The **Pausable Countdown Peripheral (`PausableCountdownTimerAPI`)**, NOT the game. The game is cited only as the functional validation test.
+* **Division:**
+  * Section 1 (*Introduction*) & Section 4 (*Conclusions*): Written **individually** by each person.
+  * Section 2 (*Device Functionality*) & Section 3 (*Design Decisions & Implementation*): Written **collectively** by the team.
